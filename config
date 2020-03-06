@@ -109,6 +109,7 @@ lxc.cap.drop = net_raw
 lxc.cap.drop = setfcap
 #lxc.cap.drop = setpcap                                       # kills journald
 #lxc.cap.drop = setuid                                        # kills systemctl
+# https://quentin.dufour.io/blog/2017-08-22/hardening-lxc-containers-running-systemd/
 lxc.cap.drop = sys_admin sys_boot
 #lxc.cap.drop = sys_chroot                                    # kills systemctl
 lxc.cap.drop = sys_module sys_nice sys_pacct sys_ptrace sys_rawio sys_resource sys_time sys_tty_config syslog wake_alarm
