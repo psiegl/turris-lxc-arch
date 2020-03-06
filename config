@@ -12,25 +12,20 @@ lxc.devttydir = lxc
 lxc.pts = 1024
 
 # Default mount entries
-# systemd as init in container: we need to premount everything so that systemd
-# will work without CAP_SYS_ADMIN.
-# (note that for cgroup:mixed to work, we also have /etc/lxc/lxc.conf to
-# make sure we include all cgroups!)
-lxc.mount.auto = proc:mixed sys:ro cgroup:mixed
-#lxc.mount.entry = /dev/console dev/console none bind,create=file 0 0
-#lxc.mount.entry = /dev/full dev/full none bind,create=file 0 0
-#lxc.mount.entry = /dev/null dev/null none bind,create=file 0 0
-#lxc.mount.entry = /dev/random dev/random none bind,create=file 0 0
-#lxc.mount.entry = /dev/tty dev/tty none bind,create=file 0 0
-#lxc.mount.entry = /dev/urandom dev/urandom none bind,create=file 0 0
-#lxc.mount.entry = /dev/zero dev/zero none bind,create=file 0 0
+lxc.mount.auto = proc:mixed sys:ro
 
+lxc.autodev = 1
 lxc.mount.entry = tmpfs dev/shm tmpfs rw,nosuid,nodev,create=dir 0 0
 lxc.mount.entry = tmpfs run tmpfs rw,nosuid,nodev,mode=755,create=dir 0 0
 lxc.mount.entry = tmpfs run/lock tmpfs rw,nosuid,nodev,noexec,relatime,size=5120k,create=dir 0 0
 lxc.mount.entry = tmpfs run/user tmpfs rw,nosuid,nodev,mode=755,size=50m,create=dir 0 0
-#lxc.mount.entry = tmpfs sys/fs/cgroup tmpfs rw,nosuid,nodev,create=dir 0 0
+lxc.mount.entry = tmpfs sys/fs/cgroup tmpfs rw,nosuid,nodev,create=dir 0 0
 lxc.mount.entry = mqueue dev/mqueue mqueue rw,relatime,create=dir 0 0
+# required for NFS server (in case sys_admin is dropped)
+lxc.mount.entry = nfsd proc/fs/nfsd nfsd rw 0 0
+lxc.mount.entry = rpc_pipefs var/lib/nfs/rpc_pipefs rpc_pipefs rw 0 0
+lxc.hook.mount = /srv/lxc/patine/hook-cgroups.sh
+lxc.hook.autodev = /srv/lxc/patine/hook-dev.sh
 
 # CGroup whitelist
 lxc.cgroup.devices.deny = a
@@ -61,6 +56,10 @@ lxc.cgroup.devices.allow = c 254:0 rm
 ## hpet
 lxc.cgroup.devices.allow = c 10:228 rm
 
+# HDD access
+#lxc.cgroup.devices.allow = b 9:0   rwm   # /dev/md0
+#lxc.cgroup.devices.allow = b 9:127 rwm   # /dev/md127
+
 # Network configuration
 lxc.network.type = veth
 lxc.network.name = vethpatine
@@ -81,15 +80,7 @@ lxc.mount.entry=/dev/crypto dev/crypto none bind
 
 
 lxc.logfile = /srv/lxc/patine/patine.log
-lxc.loglevel = 3
-
-lxc.autodev = 1
-
-# HDD access
-#lxc.cgroup.devices.allow = b 9:0   rwm   # /dev/md0
-#lxc.cgroup.devices.allow = b 9:127 rwm   # /dev/md127
-
-lxc.hook.autodev = /srv/lxc/patine/hook-dev.sh
+lxc.loglevel = 1
 
 
 ############### HARDENING
@@ -118,8 +109,7 @@ lxc.cap.drop = net_raw
 lxc.cap.drop = setfcap
 #lxc.cap.drop = setpcap                                       # kills journald
 #lxc.cap.drop = setuid                                        # kills systemctl
-#lxc.cap.drop = sys_admin
-lxc.cap.drop = sys_boot
+lxc.cap.drop = sys_admin sys_boot
 #lxc.cap.drop = sys_chroot                                    # kills systemctl
 lxc.cap.drop = sys_module sys_nice sys_pacct sys_ptrace sys_rawio sys_resource sys_time sys_tty_config syslog wake_alarm
 
