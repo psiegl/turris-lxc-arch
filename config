@@ -1,0 +1,132 @@
+# Template used to create this container: /usr/share/lxc/templates/lxc-download
+# Parameters passed to the template: --server repo.turris.cz/lxc --no-validate --dist ArchLinux --release latest --arch armv7l
+# For additional config options, please look at lxc.container.conf(5)
+
+# Container specific configuration
+lxc.rootfs = /srv/lxc/patine/rootfs
+lxc.utsname = patine
+
+# Default console settings
+lxc.tty = 2
+lxc.devttydir = lxc
+lxc.pts = 1024
+
+# Default mount entries
+# systemd as init in container: we need to premount everything so that systemd
+# will work without CAP_SYS_ADMIN.
+# (note that for cgroup:mixed to work, we also have /etc/lxc/lxc.conf to
+# make sure we include all cgroups!)
+lxc.mount.auto = proc:mixed sys:ro cgroup:mixed
+#lxc.mount.entry = /dev/console dev/console none bind,create=file 0 0
+#lxc.mount.entry = /dev/full dev/full none bind,create=file 0 0
+#lxc.mount.entry = /dev/null dev/null none bind,create=file 0 0
+#lxc.mount.entry = /dev/random dev/random none bind,create=file 0 0
+#lxc.mount.entry = /dev/tty dev/tty none bind,create=file 0 0
+#lxc.mount.entry = /dev/urandom dev/urandom none bind,create=file 0 0
+#lxc.mount.entry = /dev/zero dev/zero none bind,create=file 0 0
+
+lxc.mount.entry = tmpfs dev/shm tmpfs rw,nosuid,nodev,create=dir 0 0
+lxc.mount.entry = tmpfs run tmpfs rw,nosuid,nodev,mode=755,create=dir 0 0
+lxc.mount.entry = tmpfs run/lock tmpfs rw,nosuid,nodev,noexec,relatime,size=5120k,create=dir 0 0
+lxc.mount.entry = tmpfs run/user tmpfs rw,nosuid,nodev,mode=755,size=50m,create=dir 0 0
+#lxc.mount.entry = tmpfs sys/fs/cgroup tmpfs rw,nosuid,nodev,create=dir 0 0
+lxc.mount.entry = mqueue dev/mqueue mqueue rw,relatime,create=dir 0 0
+
+# CGroup whitelist
+lxc.cgroup.devices.deny = a
+## Allow any mknod (but not reading/writing the node)
+lxc.cgroup.devices.allow = c *:* m
+lxc.cgroup.devices.allow = b *:* m
+## Allow specific devices
+### /dev/null
+lxc.cgroup.devices.allow = c 1:3 rwm
+### /dev/zero
+lxc.cgroup.devices.allow = c 1:5 rwm
+### /dev/full
+lxc.cgroup.devices.allow = c 1:7 rwm
+### /dev/tty
+lxc.cgroup.devices.allow = c 5:0 rwm
+### /dev/console
+lxc.cgroup.devices.allow = c 5:1 rwm
+### /dev/ptmx
+lxc.cgroup.devices.allow = c 5:2 rwm
+### /dev/random
+lxc.cgroup.devices.allow = c 1:8 rwm
+### /dev/urandom
+lxc.cgroup.devices.allow = c 1:9 rwm
+### /dev/pts/*
+lxc.cgroup.devices.allow = c 136:* rwm
+## rtc
+lxc.cgroup.devices.allow = c 254:0 rm
+## hpet
+lxc.cgroup.devices.allow = c 10:228 rm
+
+# Network configuration
+lxc.network.type = veth
+lxc.network.name = vethpatine
+lxc.network.link = br-wan
+lxc.network.flags = up
+lxc.network.hwaddr = 52:82:ad:d3:b0:8e
+lxc.network.ipv4 = 192.168.178.33/24
+lxc.network.ipv4.gateway = 192.168.178.1
+lxc.network.ipv6 = fe80::5082:adff:fed3:b08e/64
+lxc.network.veth.pair = vethpatine
+lxc.network.script.down = /srv/lxc/patine/tx-clean.sh
+
+lxc.cgroup.devices.allow = c 10:200 rwm
+lxc.mount.entry=/dev/net dev/net none bind,create=dir
+
+lxc.cgroup.devices.allow = c 10:58 rwm
+lxc.mount.entry=/dev/crypto dev/crypto none bind
+
+
+lxc.logfile = /srv/lxc/patine/patine.log
+lxc.loglevel = 3
+
+lxc.autodev = 1
+
+# HDD access
+#lxc.cgroup.devices.allow = b 9:0   rwm   # /dev/md0
+#lxc.cgroup.devices.allow = b 9:127 rwm   # /dev/md127
+
+lxc.hook.autodev = /srv/lxc/patine/hook-dev.sh
+
+
+############### HARDENING
+
+# Properly shutdown the container with lxc-stop
+lxc.haltsignal=SIGRTMIN+4
+lxc.stopsignal=SIGRTMIN+14
+
+# Linux Capabilities
+# http://man7.org/linux/man-pages/man7/capabilities.7.html
+# https://www.redhat.com/en/blog/secure-your-containers-one-weird-trick
+lxc.cap.drop = audit_control audit_read audit_write block_suspend
+#lxc.cap.drop = chown
+#lxc.cap.drop = dac_override                                  # kills a lot
+lxc.cap.drop = dac_read_search
+#lxc.cap.drop = fowner                                        # kills systemd-resolved, netdata
+lxc.cap.drop = fsetid ipc_lock ipc_owner
+#lxc.cap.drop = kill
+lxc.cap.drop = lease
+lxc.cap.drop = linux_immutable mac_admin mac_override mknod
+#lxc.cap.drop = net_admin                                     # kills tinc (, iptables)
+#lxc.cap.drop = net_bind_service net_broadcast
+# kills systemd-resolved
+lxc.cap.drop = net_raw
+#lxc.cap.drop = setgid                                        # kills systemctl
+lxc.cap.drop = setfcap
+#lxc.cap.drop = setpcap                                       # kills journald
+#lxc.cap.drop = setuid                                        # kills systemctl
+#lxc.cap.drop = sys_admin
+lxc.cap.drop = sys_boot
+#lxc.cap.drop = sys_chroot                                    # kills systemctl
+lxc.cap.drop = sys_module sys_nice sys_pacct sys_ptrace sys_rawio sys_resource sys_time sys_tty_config syslog wake_alarm
+
+
+# Blacklist some syscalls which are not safe in privileged
+# containers (part of LXC package)
+lxc.seccomp = /usr/share/lxc/config/common.seccomp
+
+lxc.kmsg = 0
+
