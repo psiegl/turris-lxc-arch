@@ -1,2 +1,2 @@
 #!/bin/sh
-ip link delete vethpatine || true
+ip link delete vethPATINE || true
